@@ -4,15 +4,21 @@
 
 package team4384.robot;
 
+import com.revrobotics.AbsoluteEncoder;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.CANSparkMaxLowLevel;
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
-import edu.wpi.first.wpilibj.motorcontrol.MotorControllerGroup;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import team4384.robot.constants.CTREConfigs;
+import team4384.robot.constants.RobotMap;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -22,6 +28,25 @@ import team4384.robot.constants.CTREConfigs;
  */
 public class Robot extends TimedRobot {
   public static CTREConfigs ctreConfigs;
+  private CANSparkMax armBase1 = new CANSparkMax(49, CANSparkMaxLowLevel.MotorType.kBrushless);
+  private CANSparkMax armBase2 = new CANSparkMax(50, CANSparkMaxLowLevel.MotorType.kBrushless);
+
+  private CANSparkMax IntakeTurner = new CANSparkMax(51, CANSparkMaxLowLevel.MotorType.kBrushless);
+  private CANSparkMax Intake = new CANSparkMax(52, CANSparkMaxLowLevel.MotorType.kBrushless);
+
+  private Joystick armBase = new Joystick(1);
+  private JoystickButton ArmBaseUp = new JoystickButton(armBase, 7);
+  private JoystickButton ArmBaseDown = new JoystickButton(armBase, 8);
+  private JoystickButton IntakeUp = new JoystickButton(armBase, 1);
+  private JoystickButton IntakeDown = new JoystickButton(armBase, 2);
+  private JoystickButton CubeOut = new JoystickButton(armBase, 3);
+  private JoystickButton CubeIn = new JoystickButton(armBase, 4);
+  private JoystickButton ConeIn = new JoystickButton(armBase, 5);
+  private JoystickButton ConeOut = new JoystickButton(armBase, 6);
+
+  private DigitalInput arm_limit = new DigitalInput(1);
+  private DigitalInput bottom_intake = new DigitalInput(2);
+
 
   private Command m_autonomousCommand;
   private boolean runOnce = false;
@@ -36,6 +61,9 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
+
+    UsbCamera camera = CameraServer.startAutomaticCapture();
+    CameraServer.putVideo("Video", 600, 400);
     ctreConfigs = new CTREConfigs();
     // Instantiate our RobotContainer.  This will perform all our button bindings, and put our
     // autonomous chooser on the dashboard.
@@ -47,11 +75,12 @@ public class Robot extends TimedRobot {
     pathChooser.addOption("Charge Station", 2);
 
     SmartDashboard.putData("Path Selection", pathChooser);
+    armBase2.setInverted(true);
   }
 
   /**
    * This function is called every robot packet, no matter the mode. Use this for items like
-   * diagnostics that you want ran during disabled, autonomous, teleoperated and test.
+k  * diagnostics that you want ran during disabled, autonomous, teleoperated and test.
    *
    * <p>This runs after the mode specific periodic functions, but before LiveWindow and
    * SmartDashboard integrated updating.
@@ -79,12 +108,6 @@ public class Robot extends TimedRobot {
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
-    /*m_autonomousCommand = m_robotContainer.getAutonomousCommand();
-
-    // schedule the autonomous command (example)
-    if (m_autonomousCommand != null) {
-      m_autonomousCommand.schedule();
-    }*/
 
     pathChosen = (SendableChooser<Integer>)SmartDashboard.getData("Path Selection");
     runOnce = false;
@@ -120,7 +143,39 @@ public class Robot extends TimedRobot {
 
   /** This function is called periodically during operator control. */
   @Override
-  public void teleopPeriodic() {};
+  public void teleopPeriodic() {
+    SmartDashboard.putBoolean("Limit Switch", bottom_intake.get());
+
+    if(ArmBaseUp.getAsBoolean()) {
+      armBase1.set(RobotMap.BASE_SPEED);
+      armBase2.set(RobotMap.BASE_SPEED);
+    } else if(ArmBaseDown.getAsBoolean() && arm_limit.get() == false) {
+      armBase1.set(-RobotMap.BASE_SPEED);
+      armBase2.set(-RobotMap.BASE_SPEED);
+    } else {
+      armBase1.getPIDController().setReference(armBase1.getEncoder().getPosition(), CANSparkMax.ControlType.kPosition);
+      armBase2.getPIDController().setReference(armBase2.getEncoder().getPosition(), CANSparkMax.ControlType.kPosition);
+    }
+
+    if(IntakeUp.getAsBoolean() && bottom_intake.get() == false) {
+      IntakeTurner.set(RobotMap.INTAKE_TURNER_SPEED);
+    } else if(IntakeDown.getAsBoolean()) {
+      IntakeTurner.set(-RobotMap.INTAKE_TURNER_SPEED);
+    } else {
+      IntakeTurner.getPIDController().setReference(IntakeTurner.getEncoder().getPosition(), CANSparkMax.ControlType.kPosition);
+      IntakeTurner.getPIDController().setReference(IntakeTurner.getEncoder().getPosition(), CANSparkMax.ControlType.kPosition);
+    }
+
+    if(CubeIn.getAsBoolean() || ConeOut.getAsBoolean()) {
+      Intake.set(RobotMap.INTAKE_SPEED);
+      SmartDashboard.putBoolean("Intake", true);
+    } else if(CubeOut.getAsBoolean() || ConeIn.getAsBoolean()) {
+      SmartDashboard.putBoolean("Intake", false);
+      Intake.set(-RobotMap.INTAKE_SPEED);
+    } else {
+      Intake.stopMotor();
+    }
+  };
 
   @Override
   public void testInit() {
