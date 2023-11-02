@@ -9,6 +9,7 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel;
 import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -19,6 +20,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.JoystickButton;
 import team4384.robot.constants.CTREConfigs;
 import team4384.robot.constants.RobotMap;
+import team4384.robot.subsystems.Swerve;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -46,6 +48,8 @@ public class Robot extends TimedRobot {
 
   private DigitalInput arm_limit = new DigitalInput(1);
   private DigitalInput bottom_intake = new DigitalInput(2);
+
+  public final Swerve s_Swerve = new Swerve();
 
 
   private Command m_autonomousCommand;
@@ -183,9 +187,50 @@ k  * diagnostics that you want ran during disabled, autonomous, teleoperated and
     CommandScheduler.getInstance().cancelAll();
   }
 
+  public static void sleep() {
+    try {
+      Thread.sleep(50);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
+  }
+
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
-
+    Intake.set(0.1);
+    sleep();
+    Intake.set(-0.1);
+    sleep();
+    IntakeTurner.set(0.1);
+    sleep();
+    IntakeTurner.set(-0.1);
+    sleep();
+    armBase1.set(0.1);
+    armBase2.set(0.1);
+    sleep();
+    armBase1.set(-0.1);
+    armBase2.set(-0.1);
+    sleep();
+    s_Swerve.drive(
+            new Translation2d(0.01,0),
+            0,
+            false,
+            false
+    );
+    sleep();
+    s_Swerve.drive(
+            new Translation2d(0,0.01),
+            0,
+            false,
+            false
+    );
+    sleep();
+    s_Swerve.drive(
+            new Translation2d(0,0),
+            0.1,
+            false,
+            false
+    );
   }
 }
